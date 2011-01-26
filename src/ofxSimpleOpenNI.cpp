@@ -6,8 +6,8 @@ void XN_CALLBACK_TYPE User_NewUser(UserGenerator& generator, XnUserID nId, void*
 	ofxSimpleOpenNI* app = (ofxSimpleOpenNI*) pCookie;
 
 	printf("New User %d\n", nId);
-	// New user found
 
+	//START POSE DETECTION OR CALIBRATION DEPENDING IF POSE IS NEEDED
 	if (app->g_bNeedPose)
 	{
 		app->g_user.GetPoseDetectionCap().StartPoseDetection(app->g_strPose, nId);
@@ -21,8 +21,6 @@ void XN_CALLBACK_TYPE User_NewUser(UserGenerator& generator, XnUserID nId, void*
 // Callback: An existing user was lost
 void XN_CALLBACK_TYPE User_LostUser(UserGenerator& generator, XnUserID nId, void* pCookie)
 {
-	ofxSimpleOpenNI* app = (ofxSimpleOpenNI*) pCookie;
-
 	printf("Lost user %d\n", nId);
 }
 
@@ -32,15 +30,15 @@ void XN_CALLBACK_TYPE UserPose_PoseDetected(PoseDetectionCapability& capability,
 	ofxSimpleOpenNI* app = (ofxSimpleOpenNI*) pCookie;
 	
 	printf("Pose %s detected for user %d\n", strPose, nId);
+
+	//STOP POSE DETECTION AND START CALIBRATING
 	app->g_user.GetPoseDetectionCap().StopPoseDetection(nId);
 	app->g_user.GetSkeletonCap().RequestCalibration(nId, true);
 }
 
 // Callback: Started calibration
 void XN_CALLBACK_TYPE UserCalibration_CalibrationStart(SkeletonCapability& capability, XnUserID nId, void* pCookie)
-{
-	ofxSimpleOpenNI* app = (ofxSimpleOpenNI*) pCookie;
-	
+{	
 	printf("Calibration started for user %d\n", nId);
 }
 
@@ -53,12 +51,14 @@ void XN_CALLBACK_TYPE UserCalibration_CalibrationEnd(SkeletonCapability& capabil
 	{
 		// Calibration succeeded
 		printf("Calibration complete, start tracking user %d\n", nId);
+		//START TO TRACK THE USER
 		app->g_user.GetSkeletonCap().StartTracking(nId);
 	}
 	else
 	{
 		// Calibration failed
 		printf("Calibration failed for user %d\n", nId);
+		//START POSE DETECTION OR CALIBRATION DEPENDING IF POSE IS NEEDED
 		if (app->g_bNeedPose)
 		{
 			app->g_user.GetPoseDetectionCap().StartPoseDetection(app->g_strPose, nId);
@@ -71,17 +71,42 @@ void XN_CALLBACK_TYPE UserCalibration_CalibrationEnd(SkeletonCapability& capabil
 }
 
 //--------------------------------------------------------------
-void ofxSimpleOpenNI::setup()
+void ofxSimpleOpenNI::setup(bool fromRecording)
 {
-        XnStatus rc;
-        EnumerationErrors errors;
+        width = WIDTH;
+        height = HEIGHT;
+      
+	setupOpenNI(fromRecording); 
+	setupShader();	
+	setupShape();
+	setupTexture();
+}
 
+
+void ofxSimpleOpenNI::setupOpenNI(bool fromRecording)
+{
+	//INIT FLAGS
+	g_bFromRecording = fromRecording;
 	g_bNeedPose = false;
-        
-	//rc = g_context.InitFromXmlFile(SAMPLE_XML_PATH, &errors);
-	rc = g_context.InitFromXmlFile(SAMPLE_LICENSE_PATH, &errors);
-	rc = g_context.RunXmlScriptFromFile(SAMPLE_LICENSE_PATH);
-        if (rc == XN_STATUS_NO_NODE_PRESENT)
+
+	XnStatus rc;
+        EnumerationErrors errors;
+      
+	//OPEN XML FILE 
+	if(!g_bFromRecording) 
+	{
+		//Case live camera -> standard xml file
+		rc = g_context.InitFromXmlFile(SAMPLE_XML_PATH, &errors);
+	}
+	else
+	{
+		//Case recording -> licence xml file
+		rc = g_context.InitFromXmlFile(SAMPLE_LICENSE_PATH, &errors);
+		rc = g_context.RunXmlScriptFromFile(SAMPLE_LICENSE_PATH);
+        }
+
+	//CHECK XML FILE
+	if (rc == XN_STATUS_NO_NODE_PRESENT)
         {
                 XnChar strError[1024];
                 errors.ToString(strError, 1024);
@@ -92,29 +117,36 @@ void ofxSimpleOpenNI::setup()
                 printf("Open failed: %s\n", xnGetStatusString(rc));
         }
 
-        rc = g_context.OpenFileRecording(SAMPLE_RECORDING_PATH);         
+	//IF RECORDING OPEN IT
+	if(g_bFromRecording) 
+        	rc = g_context.OpenFileRecording(SAMPLE_RECORDING_PATH);         
         
+	//FIND DEPTH/IMAGE NODES
 	rc = g_context.FindExistingNode(XN_NODE_TYPE_DEPTH, g_depth);
         rc = g_context.FindExistingNode(XN_NODE_TYPE_IMAGE, g_image);
-	rc = g_context.FindExistingNode(XN_NODE_TYPE_USER, g_user);
 
+	//FIND OR CREATE USER NODE
+	rc = g_context.FindExistingNode(XN_NODE_TYPE_USER, g_user);
 	if (rc != XN_STATUS_OK)
 	{
 		rc = g_user.Create(g_context);
 		CHECK_RC(rc, "Find user generator");
 	}
 
+	//REGISTER CALLBACKS
 	XnCallbackHandle hUserCallbacks, hCalibrationCallbacks, hPoseCallbacks;
 
+	//USER CALLBACK
 	if (!g_user.IsCapabilitySupported(XN_CAPABILITY_SKELETON))
 	{
 		printf("Supplied user generator doesn't support skeleton\n");
 	}
-
 	g_user.RegisterUserCallbacks(User_NewUser,User_LostUser,this, hUserCallbacks);
 
+	//SKELETON CALLBACK
 	g_user.GetSkeletonCap().RegisterCalibrationCallbacks(UserCalibration_CalibrationStart,UserCalibration_CalibrationEnd,this,hCalibrationCallbacks);
 	
+	//CHECK IF PI POSE IS NEEDED FOR CALIBRATION AND REGISTER CALLBACK IF SO
 	if (g_user.GetSkeletonCap().NeedPoseForCalibration())
 	{
 		g_bNeedPose = true;
@@ -126,27 +158,51 @@ void ofxSimpleOpenNI::setup()
 		g_user.GetSkeletonCap().GetCalibrationPose(g_strPose);
 	}
 
+	//SELECT FULL BODY SKELETON
 	g_user.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_ALL);
 	
+	//START THE GENERATION
+	rc = g_context.StartGeneratingAll();
+
+        //TEST GENERATION
+	rc = g_context.WaitAndUpdateAll();
+        if (rc != XN_STATUS_OK)
+        {
+                printf("Read failed: %s\n", xnGetStatusString(rc));
+        }
+
+	//MAKE SURE DEPTH FRAME IS MAPPED TO IMAGE FRAME
+        g_depth.GetAlternativeViewPointCap().SetViewPoint(g_image);
+
+	//GET CALIBRATION OF DEPTH CAMERA (used in shader)
 	XnFieldOfView FOV;
 	xnGetDepthFieldOfView(g_depth, &FOV);
 
 	fXtoZ = tan(FOV.fHFOV/2)*2;
 	fYtoZ = tan(FOV.fVFOV/2)*2;
+}
 
-	width = WIDTH;
-        height = HEIGHT;
+void ofxSimpleOpenNI::setupShape()
+{
+	//TODO SWITCH on parameter
+	initShapePoints();
+	//initShapeTriangles();
+}
 
-        texDepth.allocate(width,height,GL_LUMINANCE16);
+void ofxSimpleOpenNI::setupTexture()
+{
+	texDepth.allocate(width,height,GL_LUMINANCE16);
         texColor.allocate(width,height,GL_RGB);
         texUser.allocate(width,height,GL_LUMINANCE16);
 
 	texDepth.texData.pixelType = GL_UNSIGNED_SHORT;
 	texDepth.texData.glType = GL_LUMINANCE;
 	texDepth.texData.glTypeInternal = GL_LUMINANCE16;
+	
 	//texColor.texData.pixelType = GL_UNSIGNED_BYTE;
 	//texColor.texData.glType = GL_RGB;
 	//texColor.texData.glTypeInternal = GL_RGB;
+	
 	texUser.texData.pixelType = GL_UNSIGNED_SHORT;
 	texUser.texData.glType = GL_LUMINANCE;
 	texUser.texData.glTypeInternal = GL_LUMINANCE16;
@@ -155,31 +211,24 @@ void ofxSimpleOpenNI::setup()
 	texColor.setTextureMinMagFilter(GL_LINEAR,GL_LINEAR);
 	texUser.setTextureMinMagFilter(GL_LINEAR,GL_NEAREST);
 
-	rc = g_context.StartGeneratingAll();
+	ofDisableTextureEdgeHack();	
+}
 
-        // Read a new frame
-	rc = g_context.WaitAndUpdateAll();
-        if (rc != XN_STATUS_OK)
-        {
-                printf("Read failed: %s\n", xnGetStatusString(rc));
-        }
+void ofxSimpleOpenNI::setupShader()
+{
+	shader.setup(string("myShader"),string("myShader"));
+}
 
-        g_depth.GetAlternativeViewPointCap().SetViewPoint(g_image);
-
-	ofDisableTextureEdgeHack();
-	
+//--------------------------------------------------------------
+void ofxSimpleOpenNI::initShapePoints()
+{
 	nbVertices = NBPOINTS;
 	sizeVertices = 3*nbVertices*sizeof(GLfloat);
 
 	pointCloud.reserve(width*height);
-	
-	shader.setup(string("myShader"),string("myShader"));
-	initShape();
-}
 
-void ofxSimpleOpenNI::initShape()
-{
-	 pointCloud.begin(GL_POINTS);
+
+	pointCloud.begin(GL_POINTS);
 
 	unsigned int step = 1;
        
@@ -194,7 +243,20 @@ void ofxSimpleOpenNI::initShape()
 	pointCloud.end();
 }
 
-void ofxSimpleOpenNI::updateShape()
+void ofxSimpleOpenNI::initShapeTriangles()
+{
+	
+}
+
+//--------------------------------------------------------------
+void ofxSimpleOpenNI::update()
+{
+	updateOpenNI();
+	//updateShapePoints(false);
+	updateTexture();
+}
+
+void ofxSimpleOpenNI::updateShapePoints(bool worldSpace)
 {
 	pointCloud.begin(GL_POINTS);
 
@@ -209,7 +271,8 @@ void ofxSimpleOpenNI::updateShape()
 			pt.Y=y;
 			pt.Z=g_depthMD(x,y);
 			
-			//g_depth.ConvertProjectiveToRealWorld(1,&pt,&pt);
+			if(worldSpace)
+				g_depth.ConvertProjectiveToRealWorld(1,&pt,&pt);
 
 			pointCloud.addVertex(pt.X,pt.Y,pt.Z);
 			pointCloud.setTexCoord(x,y);
@@ -218,75 +281,45 @@ void ofxSimpleOpenNI::updateShape()
 	pointCloud.end();
 }
 
-//--------------------------------------------------------------
-void ofxSimpleOpenNI::update()
+void ofxSimpleOpenNI::updateOpenNI()
 {
         XnStatus rc;
         
-	// Read a new frame
+	//READ A NEW FRAME
         //rc = g_context.WaitAnyUpdateAll();
 	rc = g_context.WaitAndUpdateAll();
         
+	//CHECK IT
 	if (rc != XN_STATUS_OK)
         {
                 printf("Read failed: %s\n", xnGetStatusString(rc));
         }
 
+	//GET FRAMES METADATA
         g_depth.GetMetaData(g_depthMD);
         g_image.GetMetaData(g_imageMD);
 	g_user.GetUserPixels(0,g_sceneMD);
+}
 
+void ofxSimpleOpenNI::updateTexture()
+{
+	//GET PIXEL BUFFER REFERENCES
       	depthPixels = g_depthMD.Data();
         colorPixels = g_imageMD.Data();
 	userPixels = g_sceneMD.Data();
 
-	int pos=0;
-
-	/*
-        unsigned char*	color;
-	color = (unsigned char*) malloc(width*height*3*sizeof(unsigned char));
-
-	for (int nY=0; nY<height; nY++)
-	{
-		for (int nX=0; nX < width; nX++)
-		{
-			pos = nY*width+nX;		
-			//color[pos*3+0] = colorPixels[pos*3+0];
-			//color[pos*3+1] = colorPixels[pos*3+1];
-			//color[pos*3+2] = colorPixels[pos*3+2];
-			
-			color[pos*3+0] = 0.;
-			color[pos*3+1] = 0.;
-			color[pos*3+2] = 0.;
-
-			if (userPixels[pos] != 0)
-			{
-				color[pos*3+0] = colorPixels[pos*3+0];
-				color[pos*3+1] = colorPixels[pos*3+1];
-				color[pos*3+2] = colorPixels[pos*3+2];
-	
-				//color[pos*3+0] = 1.; 
-				//color[pos*3+1] = 0.;
-				//color[pos*3+2] = 0.;
-			}
-		}
-
-	}
-
-	//FIX: FREE Memory from color!!!
-	*/
-
-	//texDepth.loadData((unsigned short*)depthPixels,width,height,GL_LUMINANCE); 
+	//LOAD THEM INTO TEXTURE
 	texDepth.loadData((unsigned char*)depthPixels,width,height,GL_LUMINANCE); 
         texColor.loadData((unsigned char*)colorPixels,width,height,GL_RGB);
-        //texColor.loadData((unsigned char*)color,width,height,GL_RGB);
-	//texUser.loadData((unsigned short*)userPixels,width,height,GL_LUMINANCE); 
 	texUser.loadData((unsigned char*)userPixels,width,height,GL_LUMINANCE); 
-
-	//updateShape();
 }
 
 //--------------------------------------------------------------
+void ofxSimpleOpenNI::draw()
+{
+	drawShape();
+}
+
 void ofxSimpleOpenNI::drawShape()
 {
 	glEnable(GL_DEPTH_TEST);
@@ -305,13 +338,18 @@ void ofxSimpleOpenNI::drawShape()
 	shader.end();
 
 	glDisable(GL_DEPTH_TEST);
-
 }
 
 void ofxSimpleOpenNI::drawTexture()
 {
-	//texDepth.draw(5,5,width/2,height/2);
+	texDepth.draw(5,5,width/2,height/2);
 	//texUser.draw(5*2+width/2,5,width/2,height/2);
-        //texColor.draw(5*3+width/2*2,5,width/2,height/2);
+        texColor.draw(5*3+width/2*2,5,width/2,height/2);
 }
 
+//--------------------------------------------------------------
+void ofxSimpleOpenNI::resetShader()
+{
+	shader.unload();
+	setupShader();
+}

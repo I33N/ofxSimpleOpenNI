@@ -44,8 +44,10 @@ class ofxSimpleOpenNI
 		ImageMetaData g_imageMD;
 		SceneMetaData g_sceneMD;
 
-		XnChar g_strPose[20];
 		XnBool g_bNeedPose;
+		XnBool g_bFromRecording;
+		
+		XnChar g_strPose[20];
 		XnInt nId;
  
                 ofTexture	texDepth;
@@ -66,22 +68,36 @@ class ofxSimpleOpenNI
 		XnDouble fYtoZ;
 
                 const XnDepthPixel*	depthPixels;
-                const XnUInt8*	colorPixels;
-                const XnLabel*	userPixels;
+                const XnUInt8*		colorPixels;
+                const XnLabel*		userPixels;
 
 	public:
 	
-		void setup();
-		
+		void setup(bool fromRecording=false);
+		void setupOpenNI(bool fromRecording=false);
+		void setupShape();
+		void setupTexture();
+		void setupShader();
+	
 		void init();
-		void initShape();
-		
+		void initShapePoints();
+		void initShapeTriangles();
+		void initTexture();		
+
 		void update();
-		void updateShape();
-		
+		void updateOpenNI();
+		void updateShapePoints(bool worldSpace=false);
+		void updateTexture();		
+
+		void draw();
 		void drawTexture();
 		void drawShape();
+
+		void resetShader();
 		
+		inline int getWidth(){return width;};
+		inline int getHeight(){return height;};
+
 		inline DepthGenerator* getDepthGenerator(){return &g_depth;};
 		inline ImageGenerator* getImageGenerator(){return &g_image;};
 		inline UserGenerator* getUserGenerator(){return &g_user;};
