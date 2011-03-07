@@ -93,6 +93,7 @@ class ofxSimpleOpenNI
 		void drawTexture();
 		void drawShape();
 
+		ofxShader* getShader(){return &shader;};
 		void resetShader();
 		
 		inline int getWidth(){return width;};
