@@ -29,6 +29,8 @@ using namespace xn;
 #include "MSAShape3D.h"
 #include "ofxShader.h"
 
+enum ShapeType {POINTCLOUD,SPHERECLOUD,SPLATCLOUD,TRIANGLE};
+
 class ofxSimpleOpenNI
 {
 
@@ -56,10 +58,10 @@ class ofxSimpleOpenNI
 	
 		ofxShader	shader;
 	
-		unsigned int	nbVertices;
-		unsigned int	sizeVertices;
-
 		MSA::Shape3D	pointCloud;
+		MSA::Shape3D	splatCloud;
+		MSA::Shape3D	sphereCloud;
+		MSA::Shape3D	mesh;
 
                 int             width;
 		int		height;
@@ -82,16 +84,17 @@ class ofxSimpleOpenNI
 		void init();
 		void initShapePoints();
 		void initShapeTriangles();
+		void initShapeQuads();
 		void initTexture();		
 
 		void update();
 		void updateOpenNI();
-		void updateShapePoints(bool worldSpace=false);
+		//void updateShapePoints(bool worldSpace=false);
 		void updateTexture();		
 
-		void draw();
+		void draw(ShapeType shapeType = POINTCLOUD);
+		void drawShape(ShapeType shapeType = POINTCLOUD);
 		void drawTexture();
-		void drawShape();
 
 		ofxShader* getShader(){return &shader;};
 		void resetShader();
@@ -103,7 +106,7 @@ class ofxSimpleOpenNI
 		inline ImageGenerator* getImageGenerator(){return &g_image;};
 		inline UserGenerator* getUserGenerator(){return &g_user;};
 
-		inline ofTexture* getTedDepth(){return &texDepth;};
+		inline ofTexture* getTexDepth(){return &texDepth;};
 		inline ofTexture* getTexColor(){return &texColor;};
 		inline ofTexture* getTexUser(){return &texUser;};
 };

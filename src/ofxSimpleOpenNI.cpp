@@ -160,7 +160,16 @@ void ofxSimpleOpenNI::setupOpenNI(bool fromRecording)
 
 	//SELECT FULL BODY SKELETON
 	g_user.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_ALL);
-	
+/*	
+	if (!g_user.IsCapabilitySupported(XN_CAPABILITY_USER_POSITION))
+	{
+		printf("Supplied user generator doesn't support position\n");
+	}
+	else
+	{
+		printf("Position OK\n");
+	}
+*/
 	//START THE GENERATION
 	rc = g_context.StartGeneratingAll();
 
@@ -186,7 +195,8 @@ void ofxSimpleOpenNI::setupShape()
 {
 	//TODO SWITCH on parameter
 	initShapePoints();
-	//initShapeTriangles();
+	initShapeTriangles();
+	//initShapeQuads();
 }
 
 void ofxSimpleOpenNI::setupTexture()
@@ -217,14 +227,20 @@ void ofxSimpleOpenNI::setupTexture()
 void ofxSimpleOpenNI::setupShader()
 {
 	shader.setup(string("myShader"),string("myShader"));
+	//shader.setup(string("myShader"),string("myShader"),string("myShader"),GL_POINTS,GL_POINTS,1);
+
+	//shader.setGeometryInputType(GL_POINTS);
+	//shader.setGeometryOutputType(GL_POINTS);
+	//shader.setGeometryNbOutputVertices(1);
 }
 
 //--------------------------------------------------------------
 void ofxSimpleOpenNI::initShapePoints()
 {
-	nbVertices = NBPOINTS;
-	sizeVertices = 3*nbVertices*sizeof(GLfloat);
-
+	pointCloud.enableNormal(false);
+	pointCloud.enableColor(false);
+	pointCloud.enableTexCoord(true);
+	
 	pointCloud.reserve(width*height);
 
 
@@ -236,8 +252,8 @@ void ofxSimpleOpenNI::initShapePoints()
 	{
       		for(int x = 0; x < width; x += step)
 		{
-			pointCloud.addVertex(x,y);
 			pointCloud.setTexCoord(x,y);
+			pointCloud.addVertex(0,0);
 		}
 	}
 	pointCloud.end();
@@ -245,8 +261,102 @@ void ofxSimpleOpenNI::initShapePoints()
 
 void ofxSimpleOpenNI::initShapeTriangles()
 {
+	unsigned int step = 1;
 	
+	mesh.enableNormal(false);
+	mesh.enableColor(false);
+	mesh.enableTexCoord(true);
+	
+	mesh.reserve(floor(width/step)*floor(height/step)*2);
+
+	mesh.begin(GL_TRIANGLE_STRIP);
+
+       
+	for(int y = 0; y < height; y += step)
+	{
+      		for(int x = 0; x < width; x += step)
+		{
+			mesh.setTexCoord(x,y);
+			//mesh.addVertex(x,y);
+			mesh.addVertex(0,0);
+			mesh.setTexCoord(x,y+step);
+			//mesh.addVertex(x,y+step);
+			mesh.addVertex(0,step);
+		}
+	}
+	mesh.end();
 }
+
+void ofxSimpleOpenNI::initShapeQuads()
+{
+	unsigned int step = 4;
+
+	splatCloud.enableNormal(false);
+	splatCloud.enableColor(false);
+	splatCloud.enableTexCoord(true);
+	
+	splatCloud.reserve(floor(width/step)*floor(height/step)*4);
+
+	splatCloud.begin(GL_QUADS);
+
+	float size=1.0;
+
+	for(int y = 0; y < height; y += step)
+	{
+      		for(int x = 0; x < width; x += step)
+		{
+			splatCloud.setTexCoord(x,y);
+			splatCloud.addVertex(-size,+size);
+			splatCloud.setTexCoord(x,y);
+			splatCloud.addVertex(+size,+size);
+			splatCloud.setTexCoord(x,y);
+			splatCloud.addVertex(+size,-size);
+			splatCloud.setTexCoord(x,y);
+			splatCloud.addVertex(-size,-size);
+		}
+	}
+	splatCloud.end();
+}
+
+/*
+void ofxSimpleOpenNI::initShapeTrianglesSplat()
+{
+	unsigned int step = 2;
+
+	splatCloud.enableNormal(false);
+	splatCloud.enableColor(false);
+	splatCloud.enableTexCoord(true);
+	
+	splatCloud.reserve(floor(width/step)*floor(height/step)*6);
+	//splatCloud.reserve(floor(width/step)*floor(height/step)*4);
+
+	splatCloud.begin(GL_TRIANGLES);
+	//splatCloud.begin(GL_QUADS);
+
+	float size=1.0;
+
+	for(int y = 0; y < height; y += step)
+	{
+      		for(int x = 0; x < width; x += step)
+		{
+			splatCloud.setTexCoord(x,y);	
+			splatCloud.addVertex(-size,-size);
+			splatCloud.setTexCoord(x,y);
+			splatCloud.addVertex(+size,+size);
+			splatCloud.setTexCoord(x,y);
+			splatCloud.addVertex(-size,+size);
+
+			splatCloud.setTexCoord(x,y);
+			splatCloud.addVertex(-size,-size);
+			splatCloud.setTexCoord(x,y);	
+			splatCloud.addVertex(+size,-size);
+			splatCloud.setTexCoord(x,y);
+			splatCloud.addVertex(+size,+size);
+		}
+	}
+	splatCloud.end();
+}
+*/
 
 //--------------------------------------------------------------
 void ofxSimpleOpenNI::update()
@@ -256,6 +366,7 @@ void ofxSimpleOpenNI::update()
 	updateTexture();
 }
 
+/*
 void ofxSimpleOpenNI::updateShapePoints(bool worldSpace)
 {
 	pointCloud.begin(GL_POINTS);
@@ -280,6 +391,7 @@ void ofxSimpleOpenNI::updateShapePoints(bool worldSpace)
 	}
 	pointCloud.end();
 }
+*/
 
 void ofxSimpleOpenNI::updateOpenNI()
 {
@@ -315,12 +427,52 @@ void ofxSimpleOpenNI::updateTexture()
 }
 
 //--------------------------------------------------------------
-void ofxSimpleOpenNI::draw()
+/*void ofxSimpleOpenNI::updateNormalsTexture()
 {
-	drawShape();
+	_shaderNormals.begin();
+		
+	_shaderNormals.setTexture("depth",*openNI.getTexDepth(),0);
+
+	GLfloat tx0 = 0.0f;
+	GLfloat ty0 = 0.0f;
+	GLfloat tx1 = openNI.getWidth();
+	GLfloat ty1 = openNI.getHeight();
+
+	GLfloat px0 = 0.0f;
+	GLfloat py0 = 0.0f;
+	GLfloat px1 = openNI.getWidth();
+	GLfloat py1 = openNI.getHeight();	
+
+	GLfloat tex_coords[] = {
+		tx0,ty0,
+		tx1,ty0,
+		tx1,ty1,
+		tx0,ty1
+	};
+	GLfloat verts[] = {
+		px0,py0,
+		px1,py0,
+		px1,py1,
+		px0,py1
+	};
+
+	glEnableClientState( GL_TEXTURE_COORD_ARRAY );
+	glTexCoordPointer(2, GL_FLOAT, 0, tex_coords );
+	glEnableClientState(GL_VERTEX_ARRAY);		
+	glVertexPointer(2, GL_FLOAT, 0, verts );
+	glDrawArrays( GL_TRIANGLE_FAN, 0, 4 );
+	glDisableClientState( GL_TEXTURE_COORD_ARRAY );
+
+	_shaderNormals.end();
+}*/
+
+//--------------------------------------------------------------
+void ofxSimpleOpenNI::draw(ShapeType shapeType)
+{
+	drawShape(shapeType);
 }
 
-void ofxSimpleOpenNI::drawShape()
+void ofxSimpleOpenNI::drawShape(ShapeType shapeType)
 {
 	glEnable(GL_DEPTH_TEST);
 
@@ -333,7 +485,19 @@ void ofxSimpleOpenNI::drawShape()
 	shader.setUniform("resolution",(float)width,(float)height);
 	shader.setUniform("XYtoZ",(float)fXtoZ,(float)fYtoZ);
 
-	pointCloud.draw();
+	switch(shapeType)
+	{
+		case TRIANGLE:
+			mesh.draw();break;
+		case POINTCLOUD:
+			pointCloud.draw();break;
+		case SPHERECLOUD:
+			break;
+		case SPLATCLOUD:
+			splatCloud.draw();break;
+		default:
+			pointCloud.draw();break;
+	}
 
 	shader.end();
 
