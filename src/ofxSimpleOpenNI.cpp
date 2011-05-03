@@ -90,20 +90,23 @@ void ofxSimpleOpenNI::setupOpenNI(bool fromRecording)
 	g_bNeedPose = false;
 
 	XnStatus rc;
-        EnumerationErrors errors;
+    EnumerationErrors errors;
       
 	//OPEN XML FILE 
 	if(!g_bFromRecording) 
 	{
 		//Case live camera -> standard xml file
 		rc = g_context.InitFromXmlFile(SAMPLE_XML_PATH, &errors);
+        CHECK_RC(rc,"Open XML");
 	}
 	else
 	{
 		//Case recording -> licence xml file
 		rc = g_context.InitFromXmlFile(SAMPLE_LICENSE_PATH, &errors);
+        CHECK_RC(rc,"Init Licence");
 		rc = g_context.RunXmlScriptFromFile(SAMPLE_LICENSE_PATH);
-        }
+        CHECK_RC(rc,"Run Licence");
+    }
 
 	//CHECK XML FILE
 	if (rc == XN_STATUS_NO_NODE_PRESENT)
@@ -114,16 +117,19 @@ void ofxSimpleOpenNI::setupOpenNI(bool fromRecording)
         }
         else if (rc != XN_STATUS_OK)
         {
-                printf("Open failed: %s\n", xnGetStatusString(rc));
+                CHECK_RC(rc,"Open XML");
         }
 
 	//IF RECORDING OPEN IT
 	if(g_bFromRecording) 
-        	rc = g_context.OpenFileRecording(SAMPLE_RECORDING_PATH);         
-        
+    {
+    	rc = g_context.OpenFileRecording(SAMPLE_RECORDING_PATH);         
+        CHECK_RC(rc,"Open Recording");
+    }
+
 	//FIND DEPTH/IMAGE NODES
 	rc = g_context.FindExistingNode(XN_NODE_TYPE_DEPTH, g_depth);
-        rc = g_context.FindExistingNode(XN_NODE_TYPE_IMAGE, g_image);
+    rc = g_context.FindExistingNode(XN_NODE_TYPE_IMAGE, g_image);
 
 	//FIND OR CREATE USER NODE
 	rc = g_context.FindExistingNode(XN_NODE_TYPE_USER, g_user);
@@ -478,12 +484,12 @@ void ofxSimpleOpenNI::drawShape(ShapeType shapeType)
 
 	shader.begin();
 
-	shader.setTexture("depth",texDepth,0);
-	shader.setTexture("tex",texColor,1);
-	shader.setTexture("user",texUser,2);
+	shader.setUniformTexture("depth",texDepth,0);
+	shader.setUniformTexture("tex",texColor,1);
+	shader.setUniformTexture("user",texUser,2);
 
-	shader.setUniform("resolution",(float)width,(float)height);
-	shader.setUniform("XYtoZ",(float)fXtoZ,(float)fYtoZ);
+	shader.setUniform2f("resolution",(float)width,(float)height);
+	shader.setUniform2f("XYtoZ",(float)fXtoZ,(float)fYtoZ);
 
 	switch(shapeType)
 	{

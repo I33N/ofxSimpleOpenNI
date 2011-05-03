@@ -27,7 +27,7 @@ using namespace xn;
 
 #include "ofMain.h"
 #include "MSAShape3D.h"
-#include "ofxShader.h"
+//#include "ofxShader.h"
 
 enum ShapeType {POINTCLOUD,SPHERECLOUD,SPLATCLOUD,TRIANGLE};
 
@@ -56,7 +56,7 @@ class ofxSimpleOpenNI
                 ofTexture	texColor;
                 ofTexture	texUser;
 	
-		ofxShader	shader;
+		ofShader	shader;
 	
 		MSA::Shape3D	pointCloud;
 		MSA::Shape3D	splatCloud;
@@ -96,7 +96,7 @@ class ofxSimpleOpenNI
 		void drawShape(ShapeType shapeType = POINTCLOUD);
 		void drawTexture();
 
-		ofxShader* getShader(){return &shader;};
+		ofShader* getShader(){return &shader;};
 		void resetShader();
 		
 		inline int getWidth(){return width;};
