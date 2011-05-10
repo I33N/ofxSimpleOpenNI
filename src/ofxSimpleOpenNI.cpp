@@ -96,15 +96,15 @@ void ofxSimpleOpenNI::setupOpenNI(bool fromRecording)
 	if(!g_bFromRecording) 
 	{
 		//Case live camera -> standard xml file
-		rc = g_context.InitFromXmlFile(SAMPLE_XML_PATH, &errors);
+		rc = g_context.InitFromXmlFile(ofToDataPath(SAMPLE_XML_PATH).c_str(), &errors);
         CHECK_RC(rc,"Open XML");
 	}
 	else
 	{
 		//Case recording -> licence xml file
-		rc = g_context.InitFromXmlFile(SAMPLE_LICENSE_PATH, &errors);
+		rc = g_context.InitFromXmlFile(ofToDataPath(SAMPLE_LICENSE_PATH).c_str(), &errors);
         CHECK_RC(rc,"Init Licence");
-		rc = g_context.RunXmlScriptFromFile(SAMPLE_LICENSE_PATH);
+		rc = g_context.RunXmlScriptFromFile(ofToDataPath(SAMPLE_LICENSE_PATH).c_str());
         CHECK_RC(rc,"Run Licence");
     }
 
@@ -123,7 +123,7 @@ void ofxSimpleOpenNI::setupOpenNI(bool fromRecording)
 	//IF RECORDING OPEN IT
 	if(g_bFromRecording) 
     {
-    	rc = g_context.OpenFileRecording(SAMPLE_RECORDING_PATH);         
+    	rc = g_context.OpenFileRecording(ofToDataPath(SAMPLE_RECORDING_PATH).c_str());         
         CHECK_RC(rc,"Open Recording");
     }
 
@@ -208,8 +208,8 @@ void ofxSimpleOpenNI::setupShape()
 void ofxSimpleOpenNI::setupTexture()
 {
 	texDepth.allocate(width,height,GL_LUMINANCE16);
-        texColor.allocate(width,height,GL_RGB);
-        texUser.allocate(width,height,GL_LUMINANCE16);
+	texColor.allocate(width,height,GL_RGB);
+	texUser.allocate(width,height,GL_LUMINANCE16);
 
 	texDepth.texData.pixelType = GL_UNSIGNED_SHORT;
 	texDepth.texData.glType = GL_LUMINANCE;
@@ -232,7 +232,7 @@ void ofxSimpleOpenNI::setupTexture()
 
 void ofxSimpleOpenNI::setupShader()
 {
-	shader.setup(string("myShader"),string("myShader"));
+	shader.setup(string("myShader.vert"),string("myShader.frag"));
 	//shader.setup(string("myShader"),string("myShader"),string("myShader"),GL_POINTS,GL_POINTS,1);
 
 	//shader.setGeometryInputType(GL_POINTS);
@@ -428,7 +428,7 @@ void ofxSimpleOpenNI::updateTexture()
 
 	//LOAD THEM INTO TEXTURE
 	texDepth.loadData((unsigned char*)depthPixels,width,height,GL_LUMINANCE); 
-        texColor.loadData((unsigned char*)colorPixels,width,height,GL_RGB);
+	texColor.loadData((unsigned char*)colorPixels,width,height,GL_RGB);
 	texUser.loadData((unsigned char*)userPixels,width,height,GL_LUMINANCE); 
 }
 
@@ -522,4 +522,46 @@ void ofxSimpleOpenNI::resetShader()
 {
 	shader.unload();
 	setupShader();
+}
+
+//--------------------------------------------------------------
+cv::Rect ofxSimpleOpenNI::computeBoundingBox(int factor)
+{
+	userPoints.clear();
+	
+	//Extract user points
+	for(int y = 0; y < height; y += factor)
+	{
+		for(int x = 0; x < width; x += factor)
+		{
+			if(userPixels[x+y*width]>0)
+				userPoints.push_back(cv::Point2f(x/factor,y/factor));
+		}
+	}
+	
+	if(userPoints.size()>0)
+		return cv::boundingRect(cv::Mat(userPoints));
+	else
+		return cv::Rect(0,0,1,1);
+}
+
+//--------------------------------------------------------------
+cv::Rect ofxSimpleOpenNI::computeBoundingBox(int id,int factor)
+{
+	userPoints.clear();
+	
+	//Extract user points
+	for(int y = 0; y < height; y += factor)
+	{
+		for(int x = 0; x < width; x += factor)
+		{
+			if(userPixels[x+y*width]==id)
+				userPoints.push_back(cv::Point2f(x/factor,y/factor));
+		}
+	}
+	
+	if(userPoints.size()>0)
+		return cv::boundingRect(cv::Mat(userPoints));
+	else
+		return cv::Rect(0,0,1,1);
 }
