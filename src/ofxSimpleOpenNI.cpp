@@ -527,6 +527,7 @@ void ofxSimpleOpenNI::resetShader()
 //--------------------------------------------------------------
 cv::Rect ofxSimpleOpenNI::computeBoundingBox(int factor)
 {
+	cv::vector<cv::Point2f> userPoints;
 	userPoints.clear();
 	
 	//Extract user points
@@ -542,12 +543,13 @@ cv::Rect ofxSimpleOpenNI::computeBoundingBox(int factor)
 	if(userPoints.size()>0)
 		return cv::boundingRect(cv::Mat(userPoints));
 	else
-		return cv::Rect(0,0,1,1);
+		return cv::Rect(0,0,width/factor,height/factor);
 }
 
 //--------------------------------------------------------------
 cv::Rect ofxSimpleOpenNI::computeBoundingBox(int id,int factor)
 {
+	cv::vector<cv::Point2f> userPoints;
 	userPoints.clear();
 	
 	//Extract user points
@@ -563,5 +565,5 @@ cv::Rect ofxSimpleOpenNI::computeBoundingBox(int id,int factor)
 	if(userPoints.size()>0)
 		return cv::boundingRect(cv::Mat(userPoints));
 	else
-		return cv::Rect(0,0,1,1);
+		return cv::Rect(0,0,width/factor,height/factor);
 }

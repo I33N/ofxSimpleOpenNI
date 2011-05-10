@@ -53,11 +53,6 @@ public:
 	XnChar g_strPose[20];
 	XnInt nId;
 	
-	//Bounding box
-	cv::vector<cv::Point2f> userPoints;
-	cv::Rect	boundingBox;
-	cv::Rect	boundingBoxUser[MAX_USER];
-	
 	ofTexture	texDepth;
 	ofTexture	texColor;
 	ofTexture	texUser;
@@ -105,8 +100,8 @@ public:
 	ofShader* getShader(){return &shader;};
 	void resetShader();
 	
-	cv::Rect computeBoundingBox(int factor=1);
-	cv::Rect computeBoundingBox(int id,int factor=1);
+	cv::Rect computeBoundingBox(int factor);
+	cv::Rect computeBoundingBox(int id,int factor);
 	
 	inline int getWidth(){return width;};
 	inline int getHeight(){return height;};
