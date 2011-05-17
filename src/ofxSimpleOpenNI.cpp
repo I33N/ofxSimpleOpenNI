@@ -4,9 +4,9 @@
 void XN_CALLBACK_TYPE User_NewUser(UserGenerator& generator, XnUserID nId, void* pCookie)
 {
 	ofxSimpleOpenNI* app = (ofxSimpleOpenNI*) pCookie;
-
+	
 	printf("New User %d\n", nId);
-
+	
 	//START POSE DETECTION OR CALIBRATION DEPENDING IF POSE IS NEEDED
 	if (app->g_bNeedPose)
 	{
@@ -30,7 +30,7 @@ void XN_CALLBACK_TYPE UserPose_PoseDetected(PoseDetectionCapability& capability,
 	ofxSimpleOpenNI* app = (ofxSimpleOpenNI*) pCookie;
 	
 	printf("Pose %s detected for user %d\n", strPose, nId);
-
+	
 	//STOP POSE DETECTION AND START CALIBRATING
 	app->g_user.GetPoseDetectionCap().StopPoseDetection(nId);
 	app->g_user.GetSkeletonCap().RequestCalibration(nId, true);
@@ -73,9 +73,9 @@ void XN_CALLBACK_TYPE UserCalibration_CalibrationEnd(SkeletonCapability& capabil
 //--------------------------------------------------------------
 void ofxSimpleOpenNI::setup(bool fromRecording)
 {
-        width = WIDTH;
-        height = HEIGHT;
-      
+	width = WIDTH;
+	height = HEIGHT;
+	
 	setupOpenNI(fromRecording); 
 	setupShader();	
 	setupShape();
@@ -88,10 +88,10 @@ void ofxSimpleOpenNI::setupOpenNI(bool fromRecording)
 	//INIT FLAGS
 	g_bFromRecording = fromRecording;
 	g_bNeedPose = false;
-
+	
 	XnStatus rc;
     EnumerationErrors errors;
-      
+	
 	//OPEN XML FILE 
 	if(!g_bFromRecording) 
 	{
@@ -107,30 +107,30 @@ void ofxSimpleOpenNI::setupOpenNI(bool fromRecording)
 		rc = g_context.RunXmlScriptFromFile(ofToDataPath(SAMPLE_LICENSE_PATH).c_str());
         CHECK_RC(rc,"Run Licence");
     }
-
+	
 	//CHECK XML FILE
 	if (rc == XN_STATUS_NO_NODE_PRESENT)
-        {
-                XnChar strError[1024];
-                errors.ToString(strError, 1024);
-                printf("%s\n", strError);
-        }
-        else if (rc != XN_STATUS_OK)
-        {
-                CHECK_RC(rc,"Open XML");
-        }
-
+	{
+		XnChar strError[1024];
+		errors.ToString(strError, 1024);
+		printf("%s\n", strError);
+	}
+	else if (rc != XN_STATUS_OK)
+	{
+		CHECK_RC(rc,"Open XML");
+	}
+	
 	//IF RECORDING OPEN IT
 	if(g_bFromRecording) 
     {
     	rc = g_context.OpenFileRecording(ofToDataPath(SAMPLE_RECORDING_PATH).c_str());         
         CHECK_RC(rc,"Open Recording");
     }
-
+	
 	//FIND DEPTH/IMAGE NODES
 	rc = g_context.FindExistingNode(XN_NODE_TYPE_DEPTH, g_depth);
     rc = g_context.FindExistingNode(XN_NODE_TYPE_IMAGE, g_image);
-
+	
 	//FIND OR CREATE USER NODE
 	rc = g_context.FindExistingNode(XN_NODE_TYPE_USER, g_user);
 	if (rc != XN_STATUS_OK)
@@ -138,17 +138,17 @@ void ofxSimpleOpenNI::setupOpenNI(bool fromRecording)
 		rc = g_user.Create(g_context);
 		CHECK_RC(rc, "Find user generator");
 	}
-
+	
 	//REGISTER CALLBACKS
 	XnCallbackHandle hUserCallbacks, hCalibrationCallbacks, hPoseCallbacks;
-
+	
 	//USER CALLBACK
 	if (!g_user.IsCapabilitySupported(XN_CAPABILITY_SKELETON))
 	{
 		printf("Supplied user generator doesn't support skeleton\n");
 	}
 	g_user.RegisterUserCallbacks(User_NewUser,User_LostUser,this, hUserCallbacks);
-
+	
 	//SKELETON CALLBACK
 	g_user.GetSkeletonCap().RegisterCalibrationCallbacks(UserCalibration_CalibrationStart,UserCalibration_CalibrationEnd,this,hCalibrationCallbacks);
 	
@@ -163,36 +163,36 @@ void ofxSimpleOpenNI::setupOpenNI(bool fromRecording)
 		g_user.GetPoseDetectionCap().RegisterToPoseCallbacks(UserPose_PoseDetected,NULL,this,hPoseCallbacks);
 		g_user.GetSkeletonCap().GetCalibrationPose(g_strPose);
 	}
-
+	
 	//SELECT FULL BODY SKELETON
 	g_user.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_ALL);
-/*	
-	if (!g_user.IsCapabilitySupported(XN_CAPABILITY_USER_POSITION))
-	{
-		printf("Supplied user generator doesn't support position\n");
-	}
-	else
-	{
-		printf("Position OK\n");
-	}
-*/
+	/*	
+	 if (!g_user.IsCapabilitySupported(XN_CAPABILITY_USER_POSITION))
+	 {
+	 printf("Supplied user generator doesn't support position\n");
+	 }
+	 else
+	 {
+	 printf("Position OK\n");
+	 }
+	 */
 	//START THE GENERATION
 	rc = g_context.StartGeneratingAll();
-
-        //TEST GENERATION
+	
+	//TEST GENERATION
 	rc = g_context.WaitAndUpdateAll();
-        if (rc != XN_STATUS_OK)
-        {
-                printf("Read failed: %s\n", xnGetStatusString(rc));
-        }
-
+	if (rc != XN_STATUS_OK)
+	{
+		printf("Read failed: %s\n", xnGetStatusString(rc));
+	}
+	
 	//MAKE SURE DEPTH FRAME IS MAPPED TO IMAGE FRAME
-        g_depth.GetAlternativeViewPointCap().SetViewPoint(g_image);
-
+	g_depth.GetAlternativeViewPointCap().SetViewPoint(g_image);
+	
 	//GET CALIBRATION OF DEPTH CAMERA (used in shader)
 	XnFieldOfView FOV;
 	xnGetDepthFieldOfView(g_depth, &FOV);
-
+	
 	fXtoZ = tan(FOV.fHFOV/2)*2;
 	fYtoZ = tan(FOV.fVFOV/2)*2;
 }
@@ -210,7 +210,7 @@ void ofxSimpleOpenNI::setupTexture()
 	texDepth.allocate(width,height,GL_LUMINANCE16);
 	texColor.allocate(width,height,GL_RGB);
 	texUser.allocate(width,height,GL_LUMINANCE16);
-
+	
 	texDepth.texData.pixelType = GL_UNSIGNED_SHORT;
 	texDepth.texData.glType = GL_LUMINANCE;
 	texDepth.texData.glTypeInternal = GL_LUMINANCE16;
@@ -226,15 +226,15 @@ void ofxSimpleOpenNI::setupTexture()
 	texDepth.setTextureMinMagFilter(GL_LINEAR,GL_NEAREST);
 	texColor.setTextureMinMagFilter(GL_LINEAR,GL_LINEAR);
 	texUser.setTextureMinMagFilter(GL_LINEAR,GL_NEAREST);
-
+	
 	ofDisableTextureEdgeHack();	
 }
 
 void ofxSimpleOpenNI::setupShader()
 {
 	shader.setup(string("myShader.vert"),string("myShader.frag"));
-	//shader.setup(string("myShader"),string("myShader"),string("myShader"),GL_POINTS,GL_POINTS,1);
-
+	//shader.setup(string("myShader.vert"),string("myShader.frag"),string("myShader.geom"),GL_POINTS,GL_POINTS,1);
+	
 	//shader.setGeometryInputType(GL_POINTS);
 	//shader.setGeometryOutputType(GL_POINTS);
 	//shader.setGeometryNbOutputVertices(1);
@@ -248,15 +248,15 @@ void ofxSimpleOpenNI::initShapePoints()
 	pointCloud.enableTexCoord(true);
 	
 	pointCloud.reserve(width*height);
-
-
+	
+	
 	pointCloud.begin(GL_POINTS);
-
+	
 	unsigned int step = 1;
-       
+	
 	for(int y = 0; y < height; y += step)
 	{
-      		for(int x = 0; x < width; x += step)
+		for(int x = 0; x < width; x += step)
 		{
 			pointCloud.setTexCoord(x,y);
 			pointCloud.addVertex(0,0);
@@ -274,13 +274,13 @@ void ofxSimpleOpenNI::initShapeTriangles()
 	mesh.enableTexCoord(true);
 	
 	mesh.reserve(floor(width/step)*floor(height/step)*2);
-
+	
 	mesh.begin(GL_TRIANGLE_STRIP);
-
-       
+	
+	
 	for(int y = 0; y < height; y += step)
 	{
-      		for(int x = 0; x < width; x += step)
+		for(int x = 0; x < width; x += step)
 		{
 			mesh.setTexCoord(x,y);
 			//mesh.addVertex(x,y);
@@ -296,20 +296,20 @@ void ofxSimpleOpenNI::initShapeTriangles()
 void ofxSimpleOpenNI::initShapeQuads()
 {
 	unsigned int step = 4;
-
+	
 	splatCloud.enableNormal(false);
 	splatCloud.enableColor(false);
 	splatCloud.enableTexCoord(true);
 	
 	splatCloud.reserve(floor(width/step)*floor(height/step)*4);
-
+	
 	splatCloud.begin(GL_QUADS);
-
+	
 	float size=1.0;
-
+	
 	for(int y = 0; y < height; y += step)
 	{
-      		for(int x = 0; x < width; x += step)
+		for(int x = 0; x < width; x += step)
 		{
 			splatCloud.setTexCoord(x,y);
 			splatCloud.addVertex(-size,+size);
@@ -325,44 +325,44 @@ void ofxSimpleOpenNI::initShapeQuads()
 }
 
 /*
-void ofxSimpleOpenNI::initShapeTrianglesSplat()
-{
-	unsigned int step = 2;
-
-	splatCloud.enableNormal(false);
-	splatCloud.enableColor(false);
-	splatCloud.enableTexCoord(true);
-	
-	splatCloud.reserve(floor(width/step)*floor(height/step)*6);
-	//splatCloud.reserve(floor(width/step)*floor(height/step)*4);
-
-	splatCloud.begin(GL_TRIANGLES);
-	//splatCloud.begin(GL_QUADS);
-
-	float size=1.0;
-
-	for(int y = 0; y < height; y += step)
-	{
-      		for(int x = 0; x < width; x += step)
-		{
-			splatCloud.setTexCoord(x,y);	
-			splatCloud.addVertex(-size,-size);
-			splatCloud.setTexCoord(x,y);
-			splatCloud.addVertex(+size,+size);
-			splatCloud.setTexCoord(x,y);
-			splatCloud.addVertex(-size,+size);
-
-			splatCloud.setTexCoord(x,y);
-			splatCloud.addVertex(-size,-size);
-			splatCloud.setTexCoord(x,y);	
-			splatCloud.addVertex(+size,-size);
-			splatCloud.setTexCoord(x,y);
-			splatCloud.addVertex(+size,+size);
-		}
-	}
-	splatCloud.end();
-}
-*/
+ void ofxSimpleOpenNI::initShapeTrianglesSplat()
+ {
+ unsigned int step = 2;
+ 
+ splatCloud.enableNormal(false);
+ splatCloud.enableColor(false);
+ splatCloud.enableTexCoord(true);
+ 
+ splatCloud.reserve(floor(width/step)*floor(height/step)*6);
+ //splatCloud.reserve(floor(width/step)*floor(height/step)*4);
+ 
+ splatCloud.begin(GL_TRIANGLES);
+ //splatCloud.begin(GL_QUADS);
+ 
+ float size=1.0;
+ 
+ for(int y = 0; y < height; y += step)
+ {
+ for(int x = 0; x < width; x += step)
+ {
+ splatCloud.setTexCoord(x,y);	
+ splatCloud.addVertex(-size,-size);
+ splatCloud.setTexCoord(x,y);
+ splatCloud.addVertex(+size,+size);
+ splatCloud.setTexCoord(x,y);
+ splatCloud.addVertex(-size,+size);
+ 
+ splatCloud.setTexCoord(x,y);
+ splatCloud.addVertex(-size,-size);
+ splatCloud.setTexCoord(x,y);	
+ splatCloud.addVertex(+size,-size);
+ splatCloud.setTexCoord(x,y);
+ splatCloud.addVertex(+size,+size);
+ }
+ }
+ splatCloud.end();
+ }
+ */
 
 //--------------------------------------------------------------
 void ofxSimpleOpenNI::update()
@@ -373,59 +373,59 @@ void ofxSimpleOpenNI::update()
 }
 
 /*
-void ofxSimpleOpenNI::updateShapePoints(bool worldSpace)
-{
-	pointCloud.begin(GL_POINTS);
-
-	unsigned int step = 1;
-       
-	for(int y = 0; y < height; y += step)
-	{
-      		for(int x = 0; x < width; x += step)
-		{
-			XnPoint3D pt;
-			pt.X=x;
-			pt.Y=y;
-			pt.Z=g_depthMD(x,y);
-			
-			if(worldSpace)
-				g_depth.ConvertProjectiveToRealWorld(1,&pt,&pt);
-
-			pointCloud.addVertex(pt.X,pt.Y,pt.Z);
-			pointCloud.setTexCoord(x,y);
-		}
-	}
-	pointCloud.end();
-}
-*/
+ void ofxSimpleOpenNI::updateShapePoints(bool worldSpace)
+ {
+ pointCloud.begin(GL_POINTS);
+ 
+ unsigned int step = 1;
+ 
+ for(int y = 0; y < height; y += step)
+ {
+ for(int x = 0; x < width; x += step)
+ {
+ XnPoint3D pt;
+ pt.X=x;
+ pt.Y=y;
+ pt.Z=g_depthMD(x,y);
+ 
+ if(worldSpace)
+ g_depth.ConvertProjectiveToRealWorld(1,&pt,&pt);
+ 
+ pointCloud.addVertex(pt.X,pt.Y,pt.Z);
+ pointCloud.setTexCoord(x,y);
+ }
+ }
+ pointCloud.end();
+ }
+ */
 
 void ofxSimpleOpenNI::updateOpenNI()
 {
-        XnStatus rc;
-        
+	XnStatus rc;
+	
 	//READ A NEW FRAME
-        //rc = g_context.WaitAnyUpdateAll();
+	//rc = g_context.WaitAnyUpdateAll();
 	rc = g_context.WaitAndUpdateAll();
-        
+	
 	//CHECK IT
 	if (rc != XN_STATUS_OK)
-        {
-                printf("Read failed: %s\n", xnGetStatusString(rc));
-        }
-
+	{
+		printf("Read failed: %s\n", xnGetStatusString(rc));
+	}
+	
 	//GET FRAMES METADATA
-        g_depth.GetMetaData(g_depthMD);
-        g_image.GetMetaData(g_imageMD);
+	g_depth.GetMetaData(g_depthMD);
+	g_image.GetMetaData(g_imageMD);
 	g_user.GetUserPixels(0,g_sceneMD);
 }
 
 void ofxSimpleOpenNI::updateTexture()
 {
 	//GET PIXEL BUFFER REFERENCES
-      	depthPixels = g_depthMD.Data();
-        colorPixels = g_imageMD.Data();
+	depthPixels = g_depthMD.Data();
+	colorPixels = g_imageMD.Data();
 	userPixels = g_sceneMD.Data();
-
+	
 	//LOAD THEM INTO TEXTURE
 	texDepth.loadData((unsigned char*)depthPixels,width,height,GL_LUMINANCE); 
 	texColor.loadData((unsigned char*)colorPixels,width,height,GL_RGB);
@@ -434,63 +434,64 @@ void ofxSimpleOpenNI::updateTexture()
 
 //--------------------------------------------------------------
 /*void ofxSimpleOpenNI::updateNormalsTexture()
-{
-	_shaderNormals.begin();
-		
-	_shaderNormals.setTexture("depth",*openNI.getTexDepth(),0);
-
-	GLfloat tx0 = 0.0f;
-	GLfloat ty0 = 0.0f;
-	GLfloat tx1 = openNI.getWidth();
-	GLfloat ty1 = openNI.getHeight();
-
-	GLfloat px0 = 0.0f;
-	GLfloat py0 = 0.0f;
-	GLfloat px1 = openNI.getWidth();
-	GLfloat py1 = openNI.getHeight();	
-
-	GLfloat tex_coords[] = {
-		tx0,ty0,
-		tx1,ty0,
-		tx1,ty1,
-		tx0,ty1
-	};
-	GLfloat verts[] = {
-		px0,py0,
-		px1,py0,
-		px1,py1,
-		px0,py1
-	};
-
-	glEnableClientState( GL_TEXTURE_COORD_ARRAY );
-	glTexCoordPointer(2, GL_FLOAT, 0, tex_coords );
-	glEnableClientState(GL_VERTEX_ARRAY);		
-	glVertexPointer(2, GL_FLOAT, 0, verts );
-	glDrawArrays( GL_TRIANGLE_FAN, 0, 4 );
-	glDisableClientState( GL_TEXTURE_COORD_ARRAY );
-
-	_shaderNormals.end();
-}*/
+ {
+ _shaderNormals.begin();
+ 
+ _shaderNormals.setTexture("depth",*openNI.getTexDepth(),0);
+ 
+ GLfloat tx0 = 0.0f;
+ GLfloat ty0 = 0.0f;
+ GLfloat tx1 = openNI.getWidth();
+ GLfloat ty1 = openNI.getHeight();
+ 
+ GLfloat px0 = 0.0f;
+ GLfloat py0 = 0.0f;
+ GLfloat px1 = openNI.getWidth();
+ GLfloat py1 = openNI.getHeight();	
+ 
+ GLfloat tex_coords[] = {
+ tx0,ty0,
+ tx1,ty0,
+ tx1,ty1,
+ tx0,ty1
+ };
+ GLfloat verts[] = {
+ px0,py0,
+ px1,py0,
+ px1,py1,
+ px0,py1
+ };
+ 
+ glEnableClientState( GL_TEXTURE_COORD_ARRAY );
+ glTexCoordPointer(2, GL_FLOAT, 0, tex_coords );
+ glEnableClientState(GL_VERTEX_ARRAY);		
+ glVertexPointer(2, GL_FLOAT, 0, verts );
+ glDrawArrays( GL_TRIANGLE_FAN, 0, 4 );
+ glDisableClientState( GL_TEXTURE_COORD_ARRAY );
+ 
+ _shaderNormals.end();
+ }*/
 
 //--------------------------------------------------------------
 void ofxSimpleOpenNI::draw(ShapeType shapeType)
 {
+	shader.begin();
+	
+	shader.setUniformTexture("depth",texDepth,0);
+	shader.setUniformTexture("tex",texColor,1);
+	shader.setUniformTexture("user",texUser,2);
+	
+	shader.setUniform2f("resolution",(float)width,(float)height);
+	shader.setUniform2f("XYtoZ",(float)fXtoZ,(float)fYtoZ);
+	
 	drawShape(shapeType);
+	
+	shader.end();
 }
 
 void ofxSimpleOpenNI::drawShape(ShapeType shapeType)
 {
-	glEnable(GL_DEPTH_TEST);
-
-	shader.begin();
-
-	shader.setUniformTexture("depth",texDepth,0);
-	shader.setUniformTexture("tex",texColor,1);
-	shader.setUniformTexture("user",texUser,2);
-
-	shader.setUniform2f("resolution",(float)width,(float)height);
-	shader.setUniform2f("XYtoZ",(float)fXtoZ,(float)fYtoZ);
-
+	
 	switch(shapeType)
 	{
 		case TRIANGLE:
@@ -503,18 +504,14 @@ void ofxSimpleOpenNI::drawShape(ShapeType shapeType)
 			splatCloud.draw();break;
 		default:
 			pointCloud.draw();break;
-	}
-
-	shader.end();
-
-	glDisable(GL_DEPTH_TEST);
+	}	
 }
 
 void ofxSimpleOpenNI::drawTexture()
 {
 	texDepth.draw(5,5,width/2,height/2);
-	//texUser.draw(5*2+width/2,5,width/2,height/2);
-        texColor.draw(5*3+width/2*2,5,width/2,height/2);
+	texUser.draw(5*2+width/2,5,width/2,height/2);
+	texColor.draw(5*3+width/2*2,5,width/2,height/2);
 }
 
 //--------------------------------------------------------------
